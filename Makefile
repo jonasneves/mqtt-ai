@@ -11,6 +11,8 @@ BUILD_DIR := /tmp/esp32-$(SKETCH)-build
 ESPOTA    := $(shell find ~/Library/Arduino15/packages/esp32 -name espota.py 2>/dev/null | sort -V | tail -1)
 MONITOR    = arduino-cli monitor --port "$(PORT)" --config baudrate=115200,dtr=off,rts=off
 
+# Outer single quotes pass the whole expression to the shell as one word;
+# inner double quotes produce C string literals for the -D defines.
 BUILD_FLAGS := 'build.extra_flags=-DWIFI_SSID="$(strip $(WIFI_SSID))" -DWIFI_PASS="$(strip $(WIFI_PASS))" -DMQTT_IP="$(strip $(MQTT_IP))"'
 
 .PHONY: help setup mqtt preview proxy compile flash ota monitor flash-monitor flash-car ota-car

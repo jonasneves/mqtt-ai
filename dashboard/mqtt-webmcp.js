@@ -1,5 +1,3 @@
-/* mqtt-webmcp.js -- MQTT connection + WebMCP tool registration + UI */
-
 import { GITHUB_CLIENT_ID, OAUTH_CALLBACK_ORIGIN, connectGitHub } from 'https://neevs.io/auth/connect.js';
 
 const DEFAULT_BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
@@ -28,9 +26,7 @@ const state = {
 
 let _toolLogId = 0;
 
-// Helpers
-
-function $(id) {
+function el(id) {
   return document.getElementById(id);
 }
 
@@ -39,12 +35,12 @@ function sleep(ms) {
 }
 
 function toast(msg, kind = "default", durationMs = 3000) {
-  const el = document.createElement("div");
-  el.className = "toast";
-  if (kind !== "default") el.classList.add(kind);
-  el.textContent = msg;
-  $("toast-container").appendChild(el);
-  setTimeout(() => el.remove(), durationMs);
+  const node = document.createElement("div");
+  node.className = "toast";
+  if (kind !== "default") node.classList.add(kind);
+  node.textContent = msg;
+  el("toast-container").appendChild(node);
+  setTimeout(() => node.remove(), durationMs);
 }
 
 function cssId(str) {
@@ -98,15 +94,13 @@ function trackTopic(topic) {
 }
 
 function attachJsonFormatter(id) {
-  const el = $(id);
-  if (!el) return;
-  el.addEventListener("blur", () => {
-    const val = el.value.trim();
-    if (val) el.value = prettyJson(val);
+  const field = el(id);
+  if (!field) return;
+  field.addEventListener("blur", () => {
+    const val = field.value.trim();
+    if (val) field.value = prettyJson(val);
   });
 }
-
-// Auto-reconnect
 
 const RECONNECT_MAX = 8;
 const RECONNECT_BASE_MS = 1000;
@@ -136,8 +130,6 @@ function cancelReconnect() {
   state.reconnect = null;
 }
 
-// Connection
-
 function connect(url) {
   cancelReconnect();
   state.manualDisconnect = false;
@@ -163,7 +155,7 @@ function connect(url) {
     state.connecting = false;
     updateStatusDot("connected");
     setStatusText(parseHostname(url));
-    $("connect-btn").textContent = "Disconnect";
+    el("connect-btn").textContent = "Disconnect";
     const prefix = state.topicPrefix;
     client.subscribe(prefix + "#");
     client.subscribe("devices/" + prefix + "#");
@@ -179,7 +171,7 @@ function connect(url) {
         const { topics } = JSON.parse(msg);
         for (const t of topics) trackTopic(t);
         if (!state.selected && state.seenTopics.length > 0) selectTopic(state.seenTopics[0]);
-      } catch {}
+      } catch (e) { console.warn("Failed to parse device announcement JSON", e); }
       return;
     }
 
@@ -229,26 +221,24 @@ function resetConnectionState() {
   state.topicListeners = {};
   state.topicMsgCounts = {};
   updateStatusDot("idle");
-  $("connect-btn").textContent = "Connect";
+  el("connect-btn").textContent = "Connect";
   unpinAllTopics();
   renderSidebar();
   renderMainPlaceholder();
 }
 
 function setStatusText(text) {
-  $("status-text").textContent = text;
+  el("status-text").textContent = text;
 }
 
 function updateStatusDot(status) {
-  const dot = $("status-dot");
+  const dot = el("status-dot");
   dot.className = "status-dot";
   if (status !== "idle") dot.classList.add(status);
 }
 
-// Sidebar rendering
-
 function renderMainPlaceholder() {
-  const main = $("main-panel");
+  const main = el("main-panel");
   if (!state.connected) {
     const msg = state.connecting
       ? "Connecting…"
@@ -274,8 +264,8 @@ function renderMainPlaceholder() {
 function renderSidebar() {
   renderTopicList();
   const collapsed = state.sidebarCollapsed.topics;
-  const listEl = $("topics-list");
-  const btn = $("section-toggle-topics");
+  const listEl = el("topics-list");
+  const btn = el("section-toggle-topics");
   const chevron = btn?.parentElement?.querySelector(".sidebar-chevron");
   if (listEl) listEl.hidden = collapsed;
   if (btn) btn.setAttribute("aria-expanded", String(!collapsed));
@@ -283,7 +273,7 @@ function renderSidebar() {
 }
 
 function renderTopicList() {
-  const container = $("topics-list");
+  const container = el("topics-list");
   container.innerHTML = "";
 
   const filtered = state.filter
@@ -424,8 +414,6 @@ function updateSidebarBadge(topic) {
   }
 }
 
-// Topic selection
-
 function selectTopic(topic) {
   stopWatching();
   stopContinuousPublish();
@@ -434,19 +422,15 @@ function selectTopic(topic) {
   renderTopicPanel(topic);
 }
 
-// Topic panel
-
 // Motor D-pad command payloads. Speed is in [0, 1].
 const MOTOR_CMDS = {
-  fwd:   (s) => `{"left":${s},"right":${s}}`,
-  back:  (s) => `{"left":${-s},"right":${-s}}`,
-  left:  (s) => `{"left":${-s},"right":${s}}`,
-  right: (s) => `{"left":${s},"right":${-s}}`,
-  stop:  ()  => `{"left":0,"right":0}`,
+  forward:  (s) => `{"left":${s},"right":${s}}`,
+  backward: (s) => `{"left":${-s},"right":${-s}}`,
+  left:     (s) => `{"left":${-s},"right":${s}}`,
+  right:    (s) => `{"left":${s},"right":${-s}}`,
+  stop:     ()  => `{"left":0,"right":0}`,
 };
 
-// Keyboard listeners for D-pad are added once and check for D-pad DOM presence.
-let _dpadKeyListenersAdded = false;
 let _dpadRepeatTimer = null;
 
 function _dpadPublish(topic, dir) {
@@ -469,7 +453,7 @@ function _dpadStop(topic) {
 }
 
 function renderTopicPanel(topic) {
-  const main = $("main-panel");
+  const main = el("main-panel");
   const isMotorTopic = topic.endsWith("/motors/command");
 
   const dpadHtml = isMotorTopic ? `
@@ -477,13 +461,13 @@ function renderTopicPanel(topic) {
     <div class="dpad-wrap">
       <div class="dpad">
         <div></div>
-        <button class="btn dpad-btn" data-dir="fwd" title="Forward (↑)" aria-label="Forward">↑</button>
+        <button class="btn dpad-btn" data-dir="forward" title="Forward (↑)" aria-label="Forward">↑</button>
         <div></div>
         <button class="btn dpad-btn" data-dir="left" title="Left (←)" aria-label="Left">←</button>
         <button class="btn dpad-btn dpad-stop" data-dir="stop" title="Stop (Space)" aria-label="Stop">■</button>
         <button class="btn dpad-btn" data-dir="right" title="Right (→)" aria-label="Right">→</button>
         <div></div>
-        <button class="btn dpad-btn" data-dir="back" title="Backward (↓)" aria-label="Backward">↓</button>
+        <button class="btn dpad-btn" data-dir="backward" title="Backward (↓)" aria-label="Backward">↓</button>
         <div></div>
       </div>
       <div class="dpad-speed-row">
@@ -542,33 +526,33 @@ function renderTopicPanel(topic) {
     </div>
   `;
 
-  $("btn-subscribe-once").addEventListener("click", () => doSubscribeOnce(topic));
-  $("btn-watch").addEventListener("click", () => startWatching(topic));
-  $("btn-stop-watch").addEventListener("click", stopWatching);
-  $("btn-publish").addEventListener("click", () => doPublish(topic));
-  $("publish-msg").addEventListener("keydown", (e) => {
+  el("btn-subscribe-once").addEventListener("click", () => doSubscribeOnce(topic));
+  el("btn-watch").addEventListener("click", () => startWatching(topic));
+  el("btn-stop-watch").addEventListener("click", stopWatching);
+  el("btn-publish").addEventListener("click", () => doPublish(topic));
+  el("publish-msg").addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
       doPublish(topic);
     }
   });
-  $("publish-history").addEventListener("change", (e) => {
+  el("publish-history").addEventListener("change", (e) => {
     if (!e.target.value) return;
-    $("publish-msg").value = e.target.value;
+    el("publish-msg").value = e.target.value;
     e.target.value = "";
   });
   renderPublishHistory(topic);
 
   function syncRepeatPublish() {
-    if ($("repeat-checkbox")?.checked) {
-      const hz = parseFloat($("repeat-hz").value) || 1;
+    if (el("repeat-checkbox")?.checked) {
+      const hz = parseFloat(el("repeat-hz").value) || 1;
       startContinuousPublish(topic, hz);
     } else {
       stopContinuousPublish();
     }
   }
-  $("repeat-checkbox").addEventListener("change", syncRepeatPublish);
-  $("repeat-hz").addEventListener("change", syncRepeatPublish);
+  el("repeat-checkbox").addEventListener("change", syncRepeatPublish);
+  el("repeat-hz").addEventListener("change", syncRepeatPublish);
   attachJsonFormatter("publish-msg");
 
   if (isMotorTopic) {
@@ -592,28 +576,26 @@ function renderTopicPanel(topic) {
       btn.addEventListener("pointercancel", () => _dpadStop(topic));
     }
 
-    // Keyboard: arrow keys drive, space stops. Active only when D-pad is in DOM.
-    if (!_dpadKeyListenersAdded) {
-      _dpadKeyListenersAdded = true;
-      const KEY_DIR = { ArrowUp: "fwd", ArrowDown: "back", ArrowLeft: "left", ArrowRight: "right" };
-      document.addEventListener("keydown", (e) => {
-        if (!document.querySelector(".dpad")) return;
-        if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
-        if (e.key === " ") { e.preventDefault(); _dpadStop(state.selected?.name); return; }
-        const dir = KEY_DIR[e.key];
-        if (!dir || e.repeat) return;
-        e.preventDefault();
-        _dpadStart(state.selected?.name, dir);
-      });
-      document.addEventListener("keyup", (e) => {
-        if (!document.querySelector(".dpad")) return;
-        if (KEY_DIR[e.key]) _dpadStop(state.selected?.name);
-      });
-    }
   }
 }
 
-// Publish history
+// Keyboard: arrow keys drive, space stops. Active only when D-pad is in DOM.
+function initDpadKeyListeners() {
+  const KEY_DIR = { ArrowUp: "forward", ArrowDown: "backward", ArrowLeft: "left", ArrowRight: "right" };
+  document.addEventListener("keydown", (e) => {
+    if (!document.querySelector(".dpad")) return;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+    if (e.key === " ") { e.preventDefault(); _dpadStop(state.selected?.name); return; }
+    const dir = KEY_DIR[e.key];
+    if (!dir || e.repeat) return;
+    e.preventDefault();
+    _dpadStart(state.selected?.name, dir);
+  });
+  document.addEventListener("keyup", (e) => {
+    if (!document.querySelector(".dpad")) return;
+    if (KEY_DIR[e.key]) _dpadStop(state.selected?.name);
+  });
+}
 
 function pushPublishHistory(topic, payload) {
   const hist = (state.publishHistory[topic] ??= []);
@@ -624,8 +606,8 @@ function pushPublishHistory(topic, payload) {
 }
 
 function renderPublishHistory(topic) {
-  const sel = $("publish-history");
-  const group = $("publish-history-group");
+  const sel = el("publish-history");
+  const group = el("publish-history-group");
   if (!sel || !group) return;
   const hist = state.publishHistory[topic] || [];
   group.style.display = hist.length ? "" : "none";
@@ -639,13 +621,11 @@ function renderPublishHistory(topic) {
   }
 }
 
-// Continuous publish
-
 function startContinuousPublish(topic, hz) {
   stopContinuousPublish();
   const interval = Math.max(50, Math.round(1000 / hz));
   const timer = setInterval(() => {
-    const payload = $("publish-msg")?.value || "";
+    const payload = el("publish-msg")?.value || "";
     state.mqttClient?.publish(topic, payload);
   }, interval);
   state.continuousPublish = { timer };
@@ -655,14 +635,12 @@ function stopContinuousPublish() {
   if (!state.continuousPublish) return;
   clearInterval(state.continuousPublish.timer);
   state.continuousPublish = null;
-  const cb = $("repeat-checkbox");
+  const cb = el("repeat-checkbox");
   if (cb) cb.checked = false;
 }
 
-// Subscribe / watch
-
 async function doSubscribeOnce(topic) {
-  const btn = $("btn-subscribe-once");
+  const btn = el("btn-subscribe-once");
   btn.disabled = true;
   btn.textContent = "Waiting…";
   try {
@@ -678,9 +656,9 @@ async function doSubscribeOnce(topic) {
 }
 
 function setWatchUI(watching) {
-  const btnWatch = $("btn-watch");
-  const btnStop = $("btn-stop-watch");
-  const indicator = $("watch-indicator");
+  const btnWatch = el("btn-watch");
+  const btnStop = el("btn-stop-watch");
+  const indicator = el("watch-indicator");
   if (btnWatch) btnWatch.hidden = watching;
   if (btnStop) btnStop.hidden = !watching;
   if (indicator) indicator.hidden = !watching;
@@ -699,14 +677,14 @@ function stopWatching() {
 }
 
 function showMsgCard(msg) {
-  const card = $("last-msg");
+  const card = el("last-msg");
   if (!card) return;
   card.className = "data-card";
   card.textContent = prettyJson(msg);
 }
 
 function doPublish(topic) {
-  const payload = $("publish-msg").value;
+  const payload = el("publish-msg").value;
   if (!payload) {
     toast("Enter a payload to publish", "error");
     return;
@@ -716,8 +694,6 @@ function doPublish(topic) {
   state.mqttClient.publish(topic, payload);
   toast("Published", "ok");
 }
-
-// Pinned topics
 
 function togglePin(topic) {
   if (state.pinnedTopics[topic]) return unpinTopic(topic);
@@ -740,7 +716,7 @@ function unpinAllTopics() {
 }
 
 function renderPinnedRow() {
-  const row = $("pinned-row");
+  const row = el("pinned-row");
   const pinned = Object.entries(state.pinnedTopics);
   row.hidden = !pinned.length;
   row.innerHTML = "";
@@ -768,13 +744,11 @@ function renderPinnedRow() {
 function updateWatchCard(topic) {
   const entry = state.pinnedTopics[topic];
   if (!entry) return;
-  const el = $(`watch-msg-${cssId(topic)}`);
-  if (el && entry.lastMsg !== null) {
-    el.textContent = prettyJson(entry.lastMsg);
+  const msgEl = el(`watch-msg-${cssId(topic)}`);
+  if (msgEl && entry.lastMsg !== null) {
+    msgEl.textContent = prettyJson(entry.lastMsg);
   }
 }
-
-// Core MQTT tool implementations
 
 function subscribeOnce(topic, timeoutMs = 5000) {
   if (!isConnected()) return Promise.reject(new Error("Not connected"));
@@ -814,8 +788,6 @@ function subscribeForDuration(topic, durationSec, maxMessages = 100) {
   });
 }
 
-// Tools
-
 const TOOLS = [
   {
     name: "connect_to_broker",
@@ -831,7 +803,7 @@ const TOOLS = [
     handler: async ({ ip, port = 8884 }) => {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       const url = `${proto}://${ip}:${port}/mqtt`;
-      $("url-input").value = url;
+      el("url-input").value = url;
       connect(url);
       return { status: "connecting", url };
     },
@@ -916,8 +888,6 @@ const TOOLS = [
   },
 ];
 
-// WebMCP tool registration
-
 let _webmcpActive = false;
 
 function registerWebMCPTools() {
@@ -947,8 +917,8 @@ function registerWebMCPTools() {
 }
 
 function updateWebMCPBadge(registered) {
-  const dot = $("webmcp-status-dot");
-  const text = $("webmcp-status-text");
+  const dot = el("webmcp-status-dot");
+  const text = el("webmcp-status-text");
   _webmcpActive = registered > 0;
   if (dot) {
     dot.className = "status-dot";
@@ -959,27 +929,25 @@ function updateWebMCPBadge(registered) {
   }
 }
 
-// Tool call log
-
 function appendToolLog(entry) {
   entry.id = ++_toolLogId;
   state.toolLog.unshift(entry);
   if (state.toolLog.length > 50) state.toolLog.pop();
 
-  const badge = $("tool-log-badge");
+  const badge = el("tool-log-badge");
   if (badge) {
     badge.textContent = state.toolLog.length;
     badge.hidden = false;
   }
 
-  const list = $("tool-log-list");
-  const body = $("log-body");
+  const list = el("tool-log-list");
+  const body = el("log-body");
   if (!list || !body) return;
 
   if (state.toolLog.length === 1 && body.hidden) {
     body.hidden = false;
-    $("log-toggle")?.setAttribute("aria-expanded", "true");
-    const chevron = $("log-chevron");
+    el("log-toggle")?.setAttribute("aria-expanded", "true");
+    const chevron = el("log-chevron");
     if (chevron) chevron.textContent = "▲";
   }
 
@@ -1019,19 +987,17 @@ async function replayToolCall(entry) {
   }
 }
 
-// Chat
-
 function clearChatHistory() {
   chatState.convMsgs = [];
-  $("chat-messages").innerHTML = "";
+  el("chat-messages").innerHTML = "";
 }
 
 function resetChatBusy() {
   chatState.abortCtrl?.abort();
   chatState.busy = false;
   chatState.abortCtrl = null;
-  $("chat-send").disabled = false;
-  $("chat-abort").hidden = true;
+  el("chat-send").disabled = false;
+  el("chat-abort").hidden = true;
 }
 
 
@@ -1046,10 +1012,10 @@ const chatState = {
 };
 
 function initChat() {
-  const keyInput = $("chat-api-key");
+  const keyInput = el("chat-api-key");
   keyInput.value = chatState.claudeKey;
 
-  const sel = $("chat-model-select");
+  const sel = el("chat-model-select");
   const saved = localStorage.getItem("webmcp-chat-model") || "anthropic:claude-sonnet-4-6";
   sel.value = saved;
   applyModelSelection(saved);
@@ -1060,33 +1026,33 @@ function initChat() {
     clearChatHistory();
   });
 
-  $("chat-key-save").addEventListener("click", () => {
+  el("chat-key-save").addEventListener("click", () => {
     chatState.claudeKey = keyInput.value.trim();
     localStorage.setItem("webmcp-claude-key", chatState.claudeKey);
     toast("API key saved", "ok");
   });
 
-  $("chat-send").addEventListener("click", sendChatMsg);
-  $("chat-input").addEventListener("keydown", (e) => {
+  el("chat-send").addEventListener("click", sendChatMsg);
+  el("chat-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendChatMsg();
     }
   });
-  $("chat-abort").addEventListener("click", () => chatState.abortCtrl?.abort());
-  $("chat-clear").addEventListener("click", clearChatHistory);
+  el("chat-abort").addEventListener("click", () => chatState.abortCtrl?.abort());
+  el("chat-clear").addEventListener("click", clearChatHistory);
   document.addEventListener("keydown", (e) => {
-    if ($("chat-panel")?.hidden) return;
+    if (el("chat-panel")?.hidden) return;
     if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
     const active = document.activeElement;
     if (active?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(active?.tagName)) return;
-    const chatInput = $("chat-input");
+    const chatInput = el("chat-input");
     if (chatInput && !chatInput.disabled) chatInput.focus();
   });
 
-  $("chat-panel-toggle").addEventListener("click", () => {
-    const panel = $("chat-panel");
-    const btn = $("chat-panel-toggle");
+  el("chat-panel-toggle").addEventListener("click", () => {
+    const panel = el("chat-panel");
+    const btn = el("chat-panel-toggle");
     const open = panel.hidden;
     panel.hidden = !open;
     btn.setAttribute("aria-expanded", String(open));
@@ -1098,14 +1064,14 @@ function applyModelSelection(value) {
   const [provider, ...rest] = value.split(":");
   chatState.provider = provider;
   chatState.model = rest.join(":");
-  $("chat-claude-bar").hidden = provider !== "anthropic";
-  $("chat-github-bar").hidden = provider !== "github";
-  $("github-notice").hidden = provider !== "github" || !!localStorage.getItem("webmcp-github-notice-dismissed");
+  el("chat-claude-bar").hidden = provider !== "anthropic";
+  el("chat-github-bar").hidden = provider !== "github";
+  el("github-notice").hidden = provider !== "github" || !!localStorage.getItem("webmcp-github-notice-dismissed");
   if (provider === "github") updateGitHubAuthBar();
 }
 
 function updateGitHubAuthBar() {
-  const bar = $("chat-github-bar");
+  const bar = el("chat-github-bar");
   if (!bar) return;
   bar.innerHTML = "";
   if (chatState.githubAuth) {
@@ -1155,7 +1121,7 @@ function getSystemPrompt() {
     const ellipsis = state.seenTopics.length > 20 ? "…" : "";
     lines.push(`Known topics (${state.seenTopics.length}): ${preview}${ellipsis}`);
   } else {
-    const inputUrl = $("url-input")?.value?.trim();
+    const inputUrl = el("url-input")?.value?.trim();
     const urlHint = inputUrl ? ` The URL currently configured in the dashboard is: ${inputUrl}.` : "";
     lines.push(`Not connected to MQTT broker.${urlHint} Call connect_to_broker to connect — do not ask the user for the URL unless it is missing.`);
   }
@@ -1195,7 +1161,7 @@ async function chatExecuteToolCall(name, input) {
 }
 
 async function sendChatMsg() {
-  const input = $("chat-input");
+  const input = el("chat-input");
   const text = input.value.trim();
   if (!text || chatState.busy) return;
 
@@ -1210,12 +1176,12 @@ async function sendChatMsg() {
   }
 
   input.value = "";
-  appendChatMsg("user", text);
   chatState.convMsgs.push({ role: "user", content: text });
+  appendChatMsg("user", text);
   chatState.busy = true;
   chatState.abortCtrl = new AbortController();
-  $("chat-send").disabled = true;
-  $("chat-abort").hidden = false;
+  el("chat-send").disabled = true;
+  el("chat-abort").hidden = false;
   showChatSpinner();
 
   try {
@@ -1235,8 +1201,6 @@ async function sendChatMsg() {
     resetChatBusy();
   }
 }
-
-// Claude conversation
 
 const LOCAL_PROXY_URL = "http://127.0.0.1:7337/claude";
 
@@ -1325,7 +1289,8 @@ async function runConversationClaude(apiKey, signal, url = "https://api.anthropi
               const toolBlock = contentBlocks[contentBlocks.length - 1];
               try {
                 toolBlock.input = toolInput ? JSON.parse(toolInput) : {};
-              } catch {
+              } catch (e) {
+                console.warn("Failed to parse tool input JSON", e);
                 toolBlock.input = {};
               }
               toolInput = "";
@@ -1384,13 +1349,11 @@ async function* parseSSEStream(body) {
     } else if (line.startsWith("data: ") && currentEvent) {
       try {
         yield { event: currentEvent, data: JSON.parse(line.slice(6)) };
-      } catch {}
+      } catch (e) { console.warn("Failed to parse SSE JSON", e); }
       currentEvent = null;
     }
   }
 }
-
-// GitHub Models conversation
 
 async function runConversationGitHub(token, signal) {
   while (true) {
@@ -1493,7 +1456,8 @@ async function runConversationGitHub(token, signal) {
       let parsedArgs;
       try {
         parsedArgs = JSON.parse(tc.arguments || "{}");
-      } catch {
+      } catch (e) {
+        console.warn("Failed to parse OpenAI tool call arguments", e);
         parsedArgs = {};
       }
       const result = await chatExecuteToolCall(tc.name, parsedArgs);
@@ -1511,28 +1475,26 @@ async function* parseOpenAIStream(body) {
     if (payload === "[DONE]") return;
     try {
       yield JSON.parse(payload);
-    } catch {}
+    } catch (e) { console.warn("Failed to parse OpenAI stream chunk", e); }
   }
 }
 
-// Chat UI helpers
-
 function appendChatMsg(role, text) {
-  const container = $("chat-messages");
-  const el = document.createElement("div");
-  el.className = `chat-msg chat-msg-${role}`;
+  const container = el("chat-messages");
+  const node = document.createElement("div");
+  node.className = `chat-msg chat-msg-${role}`;
   if (role === "assistant") {
-    el.innerHTML = renderMarkdown(text);
+    node.innerHTML = renderMarkdown(text);
   } else {
-    el.textContent = text;
+    node.textContent = text;
     if (role === "user") {
-      const msgIndex = chatState.convMsgs.length; // convMsgs.push happens after this call
-      el.addEventListener("contextmenu", e => showMsgContextMenu(e, el, text, msgIndex));
+      const msgIndex = chatState.convMsgs.length - 1;
+      node.addEventListener("contextmenu", e => showMsgContextMenu(e, node, text, msgIndex));
     }
   }
-  container.appendChild(el);
+  container.appendChild(node);
   scrollChatBottom();
-  return el;
+  return node;
 }
 
 function truncateConvAt(msgEl, msgIndex) {
@@ -1545,7 +1507,7 @@ function truncateConvAt(msgEl, msgIndex) {
 
 function showMsgContextMenu(e, msgEl, text, msgIndex) {
   e.preventDefault();
-  $("chat-ctx-menu")?.remove();
+  el("chat-ctx-menu")?.remove();
 
   const menu = document.createElement("div");
   menu.id = "chat-ctx-menu";
@@ -1567,7 +1529,7 @@ function showMsgContextMenu(e, msgEl, text, msgIndex) {
     if (!action) return;
     menu.remove();
     truncateConvAt(msgEl, msgIndex);
-    const input = $("chat-input");
+    const input = el("chat-input");
     input.value = text;
     if (action === "resend") {
       sendChatMsg();
@@ -1585,7 +1547,7 @@ function showMsgContextMenu(e, msgEl, text, msgIndex) {
 }
 
 function nextGptModel() {
-  const sel = $("chat-model-select");
+  const sel = el("chat-model-select");
   const opts = Array.from(sel.options);
   const idx = opts.findIndex(o => o.value === sel.value);
   return opts.slice(idx + 1).find(o => o.value.startsWith("github:openai/gpt")) || null;
@@ -1593,32 +1555,32 @@ function nextGptModel() {
 
 function appendRateLimitMsg() {
   const next = nextGptModel();
-  const container = $("chat-messages");
-  const el = document.createElement("div");
-  el.className = "chat-msg chat-msg-error";
+  const container = el("chat-messages");
+  const node = document.createElement("div");
+  node.className = "chat-msg chat-msg-error";
   if (next) {
-    el.innerHTML = `Rate limit reached. <a href="#" class="chat-rate-limit-link">Switch to ${escHtml(next.text)}</a>`;
-    el.querySelector("a").addEventListener("click", e => {
+    node.innerHTML = `Rate limit reached. <a href="#" class="chat-rate-limit-link">Switch to ${escHtml(next.text)}</a>`;
+    node.querySelector("a").addEventListener("click", e => {
       e.preventDefault();
-      const sel = $("chat-model-select");
+      const sel = el("chat-model-select");
       sel.value = next.value;
       localStorage.setItem("webmcp-chat-model", next.value);
       applyModelSelection(next.value);
-      el.remove();
+      node.remove();
     });
   } else {
-    el.textContent = "Rate limit reached. No fallback model available.";
+    node.textContent = "Rate limit reached. No fallback model available.";
   }
-  container.appendChild(el);
+  container.appendChild(node);
   scrollChatBottom();
 }
 
 function appendChatToolCall(toolId, toolName) {
-  const container = $("chat-messages");
-  const el = document.createElement("details");
-  el.className = "chat-tool-call";
-  el.dataset.toolId = toolId;
-  el.innerHTML = `
+  const container = el("chat-messages");
+  const node = document.createElement("details");
+  node.className = "chat-tool-call";
+  node.dataset.toolId = toolId;
+  node.innerHTML = `
     <summary class="chat-tool-call-header">
       <span class="chat-tool-call-icon">⚙</span>
       <span class="chat-tool-call-name">${escHtml(toolName)}</span>
@@ -1627,7 +1589,7 @@ function appendChatToolCall(toolId, toolName) {
     </summary>
     <div class="chat-tool-call-body">Waiting for result…</div>
   `;
-  container.appendChild(el);
+  container.appendChild(node);
   scrollChatBottom();
 }
 
@@ -1652,17 +1614,17 @@ function updateChatToolCall(toolId, result, params) {
 
 function showChatSpinner() {
   hideChatSpinner();
-  const container = $("chat-messages");
-  const el = document.createElement("div");
-  el.className = "chat-spinner";
-  el.id = "chat-spinner";
-  el.innerHTML = "<span></span><span></span><span></span>";
-  container.appendChild(el);
+  const container = el("chat-messages");
+  const node = document.createElement("div");
+  node.className = "chat-spinner";
+  node.id = "chat-spinner";
+  node.innerHTML = "<span></span><span></span><span></span>";
+  container.appendChild(node);
   scrollChatBottom();
 }
 
 function hideChatSpinner() {
-  $("chat-spinner")?.remove();
+  el("chat-spinner")?.remove();
 }
 
 function handleStreamError(err, prefix = "") {
@@ -1673,8 +1635,8 @@ function handleStreamError(err, prefix = "") {
 }
 
 function scrollChatBottom() {
-  const el = $("chat-messages");
-  if (el) el.scrollTop = el.scrollHeight;
+  const msgs = el("chat-messages");
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
 function flushStreamingText(textEl, textContent, rafId) {
@@ -1690,33 +1652,29 @@ function renderMarkdown(text) {
   return DOMPurify.sanitize(marked.parse(text));
 }
 
-// Init
-
-$("topbar-home-btn").addEventListener("click", () => {
+el("topbar-home-btn").addEventListener("click", () => {
   state.selected = null;
   renderSidebar();
   renderMainPlaceholder();
 });
 
-$("connect-btn").addEventListener("click", () => {
+el("connect-btn").addEventListener("click", () => {
   if (state.connected) {
     state.manualDisconnect = true;
     cancelReconnect();
     state.mqttClient?.end(true);
     return;
   }
-  const url = $("url-input").value.trim();
+  const url = el("url-input").value.trim();
   if (url) connect(url);
 });
 
-$("url-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") $("connect-btn").click();
+el("url-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") el("connect-btn").click();
 });
 
-// Broker presets popover
-
-const presetsBtn = $("url-presets-btn");
-const presetsPopover = $("url-presets-popover");
+const presetsBtn = el("url-presets-btn");
+const presetsPopover = el("url-presets-popover");
 
 presetsBtn.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -1725,17 +1683,17 @@ presetsBtn.addEventListener("click", (e) => {
 
 presetsPopover.querySelectorAll(".url-preset-item").forEach(item => {
   item.addEventListener("click", () => {
-    $("url-input").value = item.dataset.url;
+    el("url-input").value = item.dataset.url;
     presetsPopover.hidden = true;
   });
 });
 
-$("sidebar-filter").addEventListener("input", (e) => {
+el("sidebar-filter").addEventListener("input", (e) => {
   state.filter = e.target.value;
   renderSidebar();
 });
 
-$("topic-add-input").addEventListener("keydown", (e) => {
+el("topic-add-input").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const topic = e.target.value.trim();
   if (!topic) return;
@@ -1754,29 +1712,29 @@ for (const btn of document.querySelectorAll("[data-section]")) {
   });
 }
 
-$("github-notice-dismiss").addEventListener("click", () => {
+el("github-notice-dismiss").addEventListener("click", () => {
   localStorage.setItem("webmcp-github-notice-dismissed", "1");
-  $("github-notice").hidden = true;
+  el("github-notice").hidden = true;
 });
 
-$("log-toggle").addEventListener("click", () => {
-  const body = $("log-body");
+el("log-toggle").addEventListener("click", () => {
+  const body = el("log-body");
   const expanding = body.hidden;
   body.hidden = !expanding;
-  $("log-toggle").setAttribute("aria-expanded", String(expanding));
-  $("log-chevron").textContent = expanding ? "▲" : "▼";
+  el("log-toggle").setAttribute("aria-expanded", String(expanding));
+  el("log-chevron").textContent = expanding ? "▲" : "▼";
 
   if (expanding) {
-    const list = $("tool-log-list");
+    const list = el("tool-log-list");
     list.innerHTML = "";
     for (const entry of state.toolLog) list.appendChild(createLogEntryEl(entry));
   }
 });
 
 function initTopicPrefix() {
-  const input = $("topic-prefix-input");
+  const input = el("topic-prefix-input");
   input.value = state.topicPrefix;
-  $("topic-prefix-save").addEventListener("click", () => {
+  el("topic-prefix-save").addEventListener("click", () => {
     const val = input.value.trim();
     const normalized = val && !val.endsWith("/") ? val + "/" : val;
     input.value = normalized;
@@ -1789,11 +1747,10 @@ function initTopicPrefix() {
 registerWebMCPTools();
 initChat();
 initTopicPrefix();
+initDpadKeyListeners();
 
-// WebMCP tools popover
-
-$("webmcp-status-row").addEventListener("click", () => {
-  const popover = $("webmcp-tools-popover");
+el("webmcp-status-row").addEventListener("click", () => {
+  const popover = el("webmcp-tools-popover");
   if (!popover) return;
   if (!popover.hidden) { popover.hidden = true; return; }
 
@@ -1829,10 +1786,8 @@ $("webmcp-status-row").addEventListener("click", () => {
   popover.hidden = false;
 });
 
-// Settings popover
-
-const settingsBtn = $("settings-btn");
-const settingsPopover = $("settings-popover");
+const settingsBtn = el("settings-btn");
+const settingsPopover = el("settings-popover");
 
 settingsBtn.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -1840,8 +1795,6 @@ settingsBtn.addEventListener("click", (e) => {
   settingsPopover.hidden = !opening;
   settingsBtn.setAttribute("aria-expanded", String(opening));
 });
-
-// Theme toggle
 
 const _darkMq = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -1869,17 +1822,15 @@ document.querySelectorAll(".theme-opt").forEach(btn => {
 
 applyTheme(localStorage.getItem("webmcp-theme") || "system");
 
-// Chat model label
-
 function updateChatModelLabel() {
-  const sel = $("chat-model-select");
-  const label = $("chat-model-label");
+  const sel = el("chat-model-select");
+  const label = el("chat-model-label");
   if (!sel || !label) return;
   const text = sel.options[sel.selectedIndex]?.text || "";
   label.textContent = text.replace(/^(?:GitHub · |Claude )/, "");
 }
 
-$("chat-model-select").addEventListener("change", updateChatModelLabel);
+el("chat-model-select").addEventListener("change", updateChatModelLabel);
 updateChatModelLabel();
 
 // Close all popovers on outside click or Escape
@@ -1891,7 +1842,7 @@ function closeAllPopovers(except) {
     settingsBtn.setAttribute("aria-expanded", "false");
   }
   if (except !== "webmcp") {
-    const wmcp = $("webmcp-tools-popover");
+    const wmcp = el("webmcp-tools-popover");
     if (wmcp) wmcp.hidden = true;
   }
 }
@@ -1908,5 +1859,5 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeAllPopovers();
 });
 
-$("url-input").value = state.url;
+el("url-input").value = state.url;
 connect(state.url);

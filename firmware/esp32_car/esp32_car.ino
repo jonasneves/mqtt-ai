@@ -43,8 +43,12 @@ const unsigned long RECONNECT_INTERVAL_MS = 5000;
 const unsigned long COMMAND_TIMEOUT_MS    = 500;  // stop motors if silent
 
 // L298N wiring — adjust pins to match your build
-const int ENA = 14;  const int IN1 = 12;  const int IN2 = 13;  // left motor
-const int ENB =  4;  const int IN3 = 15;  const int IN4 = 16;  // right motor
+const int ENA = 14;  // left motor enable (PWM)
+const int IN1 = 12;  // left motor direction A
+const int IN2 = 13;  // left motor direction B
+const int ENB =  4;  // right motor enable (PWM)
+const int IN3 = 15;  // right motor direction A
+const int IN4 = 16;  // right motor direction B
 
 // LEDC (PWM)
 const int PWM_FREQ = 1000;  // Hz
@@ -123,8 +127,8 @@ void onMessage(char* topic, byte* payload, unsigned int length) {
   float left = 0, right = 0;
   const char* lp = strstr(buf, "\"left\"");
   const char* rp = strstr(buf, "\"right\"");
-  if (lp) sscanf(lp + 6, " :%f", &left);   // +6 skips past "left"
-  if (rp) sscanf(rp + 7, " :%f", &right);  // +7 skips past "right"
+  if (lp) sscanf(lp + sizeof("\"left\"")  - 1, " :%f", &left);
+  if (rp) sscanf(rp + sizeof("\"right\"") - 1, " :%f", &right);
 
   setMotor(PWM_CH_L, IN1, IN2, left);
   setMotor(PWM_CH_R, IN3, IN4, right);

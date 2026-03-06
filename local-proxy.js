@@ -39,7 +39,7 @@ if (!token) {
 // ── Rate limiter ────────────────────────────────────────────────────────────
 
 let reqCount = 0;
-setInterval(() => { reqCount = 0; }, 60_000);
+setInterval(() => { reqCount = 0; }, 60_000);  // fixed 60s window, not sliding
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

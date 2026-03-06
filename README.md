@@ -84,21 +84,6 @@ make proxy
 
 This starts a local proxy at `http://127.0.0.1:7337` that forwards requests directly to `api.anthropic.com` using your OAuth token. Select **Claude · Personal account** as the model in dashboard settings.
 
-## Repo structure
-
-```
-dashboard/              Static web app — AI chat + MQTT topic browser + D-pad
-firmware/
-  esp32_led/            LED control via MQTT, OTA support
-  esp32_car/            Motor control (L298N) via MQTT, OTA support
-docker/                 Mosquitto config for local broker (optional)
-local-proxy.js          OAuth proxy — forwards AI requests to api.anthropic.com (make proxy)
-config.mk.example       WiFi/port config template (copy to config.mk)
-.env.example            OAuth token template (copy to .env)
-Makefile                All targets — run `make` to list them
-ROADMAP.md              Planned next steps
-```
-
 ## WebMCP (experimental)
 
 The dashboard also registers MQTT tools via the [W3C WebMCP spec](https://github.com/webmachinelearning/webmcp) (`navigator.modelContext`), exposing them to native browser AI agents — not just the built-in chat. Requires Chrome 146+ Canary with `chrome://flags/#webmcp-for-testing`. The chat works without it.

@@ -7,7 +7,7 @@
   --text-rgb: 26, 25, 23;
   --text: #1a1917;
   --text-secondary: rgba(var(--text-rgb), 0.60); /* labels, descriptions */
-  --text-muted: rgba(var(--text-rgb), 0.58);      /* headings, hints (dark mode widens to 0.38) */
+  --text-muted: rgba(var(--text-rgb), 0.40);      /* headings, hints */
   --accent: #2d6a4f;
   --accent-hover: #1b4332;
   --accent-light: #d8f3dc;
@@ -1283,12 +1283,11 @@ button.status-row:hover {
 }
 
 /* ── Dark mode ── */
-/* JS sets data-theme="dark" explicitly (resolving "system" via matchMedia).
-   The @media selector covers the brief pre-JS moment and no-JS scenarios.
-   Both selectors share identical variable values — keep them in sync. */
+/* JS sets data-theme="dark" or "light" (resolving "system" via matchMedia).
+   The @media rule covers the pre-JS flash; html[data-theme="dark"] covers
+   explicit selection. Both must declare the same values — CSS has no mixins. */
 
 @media (prefers-color-scheme: dark) {
-  /* [dark-vars-A] must match [dark-vars-B] below */
   :root:not([data-theme]) {
     --text-rgb: 237, 233, 227;
     --bg: #191c19;
@@ -1309,7 +1308,6 @@ button.status-row:hover {
   }
 }
 
-/* [dark-vars-B] must match [dark-vars-A] above */
 html[data-theme="dark"] {
   --text-rgb: 237, 233, 227;
   --bg: #191c19;
