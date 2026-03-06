@@ -436,8 +436,63 @@ function selectTopic(topic) {
 
 // Topic panel
 
+// Motor D-pad command payloads. Speed is in [0, 1].
+const MOTOR_CMDS = {
+  fwd:   (s) => `{"left":${s},"right":${s}}`,
+  back:  (s) => `{"left":${-s},"right":${-s}}`,
+  left:  (s) => `{"left":${-s},"right":${s}}`,
+  right: (s) => `{"left":${s},"right":${-s}}`,
+  stop:  ()  => `{"left":0,"right":0}`,
+};
+
+// Keyboard listeners for D-pad are added once and check for D-pad DOM presence.
+let _dpadKeyListenersAdded = false;
+let _dpadRepeatTimer = null;
+
+function _dpadPublish(topic, dir) {
+  const speedEl = document.querySelector(".dpad-speed");
+  const speed = speedEl ? parseFloat(speedEl.value) : 0.8;
+  const payload = MOTOR_CMDS[dir]?.(+speed.toFixed(2));
+  if (payload) state.mqttClient?.publish(topic, payload);
+}
+
+function _dpadStart(topic, dir) {
+  _dpadPublish(topic, dir);
+  clearInterval(_dpadRepeatTimer);
+  _dpadRepeatTimer = setInterval(() => _dpadPublish(topic, dir), 100);
+}
+
+function _dpadStop(topic) {
+  clearInterval(_dpadRepeatTimer);
+  _dpadRepeatTimer = null;
+  state.mqttClient?.publish(topic, MOTOR_CMDS.stop());
+}
+
 function renderTopicPanel(topic) {
   const main = $("main-panel");
+  const isMotorTopic = topic.endsWith("/motors/command");
+
+  const dpadHtml = isMotorTopic ? `
+    <div class="divider-label">Drive</div>
+    <div class="dpad-wrap">
+      <div class="dpad">
+        <div></div>
+        <button class="btn dpad-btn" data-dir="fwd" title="Forward (↑)" aria-label="Forward">↑</button>
+        <div></div>
+        <button class="btn dpad-btn" data-dir="left" title="Left (←)" aria-label="Left">←</button>
+        <button class="btn dpad-btn dpad-stop" data-dir="stop" title="Stop (Space)" aria-label="Stop">■</button>
+        <button class="btn dpad-btn" data-dir="right" title="Right (→)" aria-label="Right">→</button>
+        <div></div>
+        <button class="btn dpad-btn" data-dir="back" title="Backward (↓)" aria-label="Backward">↓</button>
+        <div></div>
+      </div>
+      <div class="dpad-speed-row">
+        <span class="repeat-label">Speed</span>
+        <input type="range" class="dpad-speed" min="0.1" max="1.0" step="0.05" value="0.8" aria-label="Motor speed">
+        <span class="dpad-speed-val repeat-unit">0.8</span>
+      </div>
+    </div>
+  ` : "";
 
   main.innerHTML = `
     <div class="detail-header">
@@ -458,6 +513,8 @@ function renderTopicPanel(topic) {
         <span class="watch-dot"></span> Watching
       </span>
     </div>
+
+    ${dpadHtml}
 
     <div class="divider-label">Publish</div>
 
@@ -513,6 +570,47 @@ function renderTopicPanel(topic) {
   $("repeat-checkbox").addEventListener("change", syncRepeatPublish);
   $("repeat-hz").addEventListener("change", syncRepeatPublish);
   attachJsonFormatter("publish-msg");
+
+  if (isMotorTopic) {
+    // Speed slider display
+    const speedEl = main.querySelector(".dpad-speed");
+    const speedVal = main.querySelector(".dpad-speed-val");
+    speedEl.addEventListener("input", () => {
+      speedVal.textContent = parseFloat(speedEl.value).toFixed(2);
+    });
+
+    // D-pad pointer events (hold to drive continuously)
+    for (const btn of main.querySelectorAll(".dpad-btn")) {
+      const dir = btn.dataset.dir;
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        btn.setPointerCapture(e.pointerId);
+        if (dir === "stop") { _dpadStop(topic); return; }
+        _dpadStart(topic, dir);
+      });
+      btn.addEventListener("pointerup",     () => _dpadStop(topic));
+      btn.addEventListener("pointercancel", () => _dpadStop(topic));
+    }
+
+    // Keyboard: arrow keys drive, space stops. Active only when D-pad is in DOM.
+    if (!_dpadKeyListenersAdded) {
+      _dpadKeyListenersAdded = true;
+      const KEY_DIR = { ArrowUp: "fwd", ArrowDown: "back", ArrowLeft: "left", ArrowRight: "right" };
+      document.addEventListener("keydown", (e) => {
+        if (!document.querySelector(".dpad")) return;
+        if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+        if (e.key === " ") { e.preventDefault(); _dpadStop(state.selected?.name); return; }
+        const dir = KEY_DIR[e.key];
+        if (!dir || e.repeat) return;
+        e.preventDefault();
+        _dpadStart(state.selected?.name, dir);
+      });
+      document.addEventListener("keyup", (e) => {
+        if (!document.querySelector(".dpad")) return;
+        if (KEY_DIR[e.key]) _dpadStop(state.selected?.name);
+      });
+    }
+  }
 }
 
 // Publish history

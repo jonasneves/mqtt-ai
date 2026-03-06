@@ -6,13 +6,14 @@ FQBN      ?= esp32:esp32:esp32cam:PartitionScheme=default
 PORT      ?= $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
 MQTT_IP   ?= broker.hivemq.com
 ESP32_IP  ?=
-BUILD_DIR := /tmp/esp32-led-build
+SKETCH    ?= esp32_led
+BUILD_DIR := /tmp/esp32-$(SKETCH)-build
 ESPOTA    := $(shell find ~/Library/Arduino15/packages/esp32 -name espota.py 2>/dev/null | sort -V | tail -1)
 MONITOR    = arduino-cli monitor --port "$(PORT)" --config baudrate=115200,dtr=off,rts=off
 
 BUILD_FLAGS := 'build.extra_flags=-DWIFI_SSID="$(strip $(WIFI_SSID))" -DWIFI_PASS="$(strip $(WIFI_PASS))" -DMQTT_IP="$(strip $(MQTT_IP))"'
 
-.PHONY: help setup mqtt preview proxy compile flash ota monitor flash-monitor
+.PHONY: help setup mqtt preview proxy compile flash ota monitor flash-monitor flash-car ota-car
 
 help:
 	@echo ""
@@ -24,11 +25,17 @@ help:
 	@echo "  \033[36mpreview\033[0m        Serve dashboard at http://localhost:8080"
 	@echo "  \033[36mproxy\033[0m          Start local Claude proxy (personal account, port 7337)"
 	@echo ""
-	@echo "\033[2mFirmware\033[0m"
-	@echo "  \033[36mflash\033[0m          Compile + upload over USB (first time)"
-	@echo "  \033[36mota\033[0m            Compile + upload over WiFi (set ESP32_IP in config.mk)"
+	@echo "\033[2mFirmware — LED (default)\033[0m"
+	@echo "  \033[36mflash\033[0m          Compile + upload esp32_led over USB"
+	@echo "  \033[36mota\033[0m            Compile + upload esp32_led over WiFi (set ESP32_IP in config.mk)"
 	@echo "  \033[36mmonitor\033[0m        Open serial monitor"
 	@echo "  \033[36mflash-monitor\033[0m  flash + open serial monitor"
+	@echo ""
+	@echo "\033[2mFirmware — Car (motor control)\033[0m"
+	@echo "  \033[36mflash-car\033[0m      Compile + upload esp32_car over USB"
+	@echo "  \033[36mota-car\033[0m        Compile + upload esp32_car over WiFi"
+	@echo ""
+	@echo "  Any target accepts \033[36mSKETCH=<name>\033[0m to select a firmware sketch."
 	@echo ""
 
 setup:
@@ -63,12 +70,12 @@ proxy:
 	node local-proxy.js
 
 compile:
-	@echo "Compiling firmware..."
+	@echo "Compiling firmware/$(SKETCH)..."
 	@arduino-cli compile \
 		--fqbn "$(FQBN)" \
 		--build-property $(BUILD_FLAGS) \
 		--build-path "$(BUILD_DIR)" \
-		firmware/esp32_led
+		firmware/$(SKETCH)
 
 flash: compile
 	@echo "Uploading over USB..."
@@ -76,13 +83,19 @@ flash: compile
 		--fqbn "$(FQBN)" \
 		--port "$(PORT)" \
 		--input-dir "$(BUILD_DIR)" \
-		firmware/esp32_led
+		firmware/$(SKETCH)
 
 ota: compile
 	@test -n "$(ESP32_IP)" || (echo "Error: set ESP32_IP in config.mk (shown in Serial Monitor after boot)"; exit 1)
 	@test -n "$(ESPOTA)"   || (echo "Error: espota.py not found — run make setup"; exit 1)
 	@echo "Uploading over WiFi to $(ESP32_IP)..."
-	@python3 "$(ESPOTA)" -i "$(ESP32_IP)" -f "$(BUILD_DIR)/esp32_led.ino.bin"
+	@python3 "$(ESPOTA)" -i "$(ESP32_IP)" -f "$(BUILD_DIR)/$(SKETCH).ino.bin"
+
+flash-car:
+	$(MAKE) flash SKETCH=esp32_car
+
+ota-car:
+	$(MAKE) ota SKETCH=esp32_car
 
 monitor:
 	$(MONITOR)
