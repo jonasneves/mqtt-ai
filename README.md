@@ -10,7 +10,7 @@ The AI model runs in the browser and publishes MQTT tool calls directly to the b
 
 ## Prerequisites
 
-- ESP32 dev board with CP210x USB-to-serial (e.g. ESP32-DevKitC)
+- ESP32-CAM-MB (AI Thinker) or any ESP32 dev board with CP210x USB-to-serial
 - [Homebrew](https://brew.sh/) — to install host dependencies
 - One of the following for the AI chat:
   - Anthropic API key — entered in the dashboard settings
@@ -32,10 +32,15 @@ cp config.mk.example config.mk
 Edit `config.mk` with your WiFi SSID and password. `PORT` is auto-detected — only override it if needed.
 
 **3. Flash firmware** (first time, via USB)
+
+Choose a sketch based on your hardware:
+
 ```bash
-make flash-monitor
+make flash-monitor            # LED control (any ESP32)
+make flash-car && make monitor  # Motor control via L298N (ESP32-CAM-MB)
 ```
-After boot, the ESP32 prints its unique topic (e.g. `devices/d4e9f4a2a044/led/command`) and its local IP. Add the IP to `config.mk` as `ESP32_IP` to enable OTA updates.
+
+After boot, the ESP32 prints its unique topic prefix (e.g. `devices/d4e9f4a2a044/`) and its local IP. Add the IP to `config.mk` as `ESP32_IP` to enable OTA updates.
 
 **4. Open the dashboard**
 
@@ -45,12 +50,15 @@ Go to [neevs.io/mqtt-ai](https://neevs.io/mqtt-ai) (or run `make preview` for lo
 
 Browse topics and publish manually, or open the AI chat panel, choose your AI provider, and describe what you want the robot to do.
 
+If you flashed `esp32_car`, selecting the `motors/command` topic shows a D-pad with a speed slider. Hold a direction button to drive; release to stop. Arrow keys work too.
+
 ## OTA updates
 
 After the first USB flash, subsequent firmware updates go over WiFi:
 
 ```bash
-make ota
+make ota        # LED sketch
+make ota-car    # Motor sketch
 ```
 
 Requires `ESP32_IP` set in `config.mk` (printed by the ESP32 on boot).
@@ -79,13 +87,16 @@ This starts a local proxy at `http://127.0.0.1:7337` that forwards requests dire
 ## Repo structure
 
 ```
-dashboard/          Static web app — AI chat + MQTT topic browser
-firmware/           ESP32 Arduino sketch — LED control via MQTT, OTA support
-docker/             Mosquitto config for local broker (optional)
-local-proxy.js      OAuth proxy — forwards AI requests to api.anthropic.com (make proxy)
-config.mk.example   WiFi/port config template (copy to config.mk)
-.env.example        OAuth token template (copy to .env)
-Makefile            All targets — run `make` to list them
+dashboard/              Static web app — AI chat + MQTT topic browser + D-pad
+firmware/
+  esp32_led/            LED control via MQTT, OTA support
+  esp32_car/            Motor control (L298N) via MQTT, OTA support
+docker/                 Mosquitto config for local broker (optional)
+local-proxy.js          OAuth proxy — forwards AI requests to api.anthropic.com (make proxy)
+config.mk.example       WiFi/port config template (copy to config.mk)
+.env.example            OAuth token template (copy to .env)
+Makefile                All targets — run `make` to list them
+ROADMAP.md              Planned next steps
 ```
 
 ## WebMCP (experimental)
