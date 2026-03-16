@@ -1255,7 +1255,7 @@ async function sendChatMsg() {
   }
 }
 
-const LOCAL_PROXY_URL = "http://127.0.0.1:7337/claude";
+const LOCAL_PROXY_URL = "http://127.0.0.1:7337/v1/messages";
 
 async function fetchClaudeStream(apiKey, signal, url) {
   const headers = { "content-type": "application/json", "anthropic-version": "2023-06-01" };
