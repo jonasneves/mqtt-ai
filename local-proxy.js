@@ -17,6 +17,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, anthropic-version, anthropic-beta",
+  "Access-Control-Allow-Private-Network": "true",  // Chrome Private Network Access
 };
 
 // ── Minimal .env loader (no dotenv dependency) ──────────────────────────────
