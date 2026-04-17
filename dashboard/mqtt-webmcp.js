@@ -1,6 +1,6 @@
 import { GITHUB_CLIENT_ID, OAUTH_CALLBACK_ORIGIN, connectGitHub } from 'https://neevs.io/auth/connect.js';
 
-const DEFAULT_BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
+const DEFAULT_BROKER_URL = "ws://localhost:9001";
 
 const state = {
   mqttClient: null,
@@ -832,12 +832,12 @@ const TOOLS = [
     parameters: {
       type: "object",
       properties: {
-        ip:   { type: "string", description: "MQTT broker host IP or hostname", default: "broker.hivemq.com" },
-        port: { type: "number", description: "MQTT WebSocket port (8884 for wss, 9001 for local ws)", default: 8884 },
+        ip:   { type: "string", description: "MQTT broker host IP or hostname", default: "localhost" },
+        port: { type: "number", description: "MQTT WebSocket port (9001 for local ws, 8884 for public wss)", default: 9001 },
       },
       required: ["ip"],
     },
-    handler: async ({ ip, port = 8884 }) => {
+    handler: async ({ ip, port = 9001 }) => {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       const url = `${proto}://${ip}:${port}/mqtt`;
       el("url-input").value = url;

@@ -41,23 +41,23 @@
         class="url-input"
         id="url-input"
         type="text"
-        value="wss://broker.hivemq.com:8884/mqtt"
+        value="ws://localhost:9001"
         aria-label="MQTT broker WebSocket URL"
         spellcheck="false"
       >
       <button class="url-presets-btn" id="url-presets-btn" aria-label="Broker presets" title="Broker presets">▾</button>
       <div class="url-presets-popover" id="url-presets-popover" hidden role="listbox" aria-label="Broker presets">
+        <button class="url-preset-item" data-url="ws://localhost:9001" role="option">
+          <span class="url-preset-label">localhost:9001</span>
+          <span class="url-preset-note">local · make mqtt (default)</span>
+        </button>
         <button class="url-preset-item" data-url="wss://broker.hivemq.com:8884/mqtt" role="option">
           <span class="url-preset-label">HiveMQ</span>
-          <span class="url-preset-note">public cloud</span>
+          <span class="url-preset-note">public cloud · fallback</span>
         </button>
         <button class="url-preset-item" data-url="wss://test.mosquitto.org:8081" role="option">
           <span class="url-preset-label">test.mosquitto.org</span>
-          <span class="url-preset-note">public cloud</span>
-        </button>
-        <button class="url-preset-item" data-url="ws://localhost:9001" role="option">
-          <span class="url-preset-label">localhost:9001</span>
-          <span class="url-preset-note">local only · make mqtt</span>
+          <span class="url-preset-note">public cloud · fallback</span>
         </button>
       </div>
     </div>

@@ -4,7 +4,7 @@
 
 FQBN      ?= esp32:esp32:esp32cam:PartitionScheme=default
 PORT      ?= $(shell ls /dev/cu.usbserial-* 2>/dev/null | head -1)
-MQTT_IP   ?= broker.hivemq.com
+MQTT_IP   ?= $(shell ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
 ESP32_IP  ?=
 SKETCH    ?= esp32_led
 BUILD_DIR := /tmp/esp32-$(SKETCH)-build
@@ -23,7 +23,7 @@ help:
 	@echo "  \033[36msetup\033[0m          Install host dependencies (run once per machine)"
 	@echo ""
 	@echo "\033[2mDev\033[0m"
-	@echo "  \033[36mmqtt\033[0m           Start local Mosquitto broker (optional. Cloud broker used by default)"
+	@echo "  \033[36mmqtt\033[0m           Start local Mosquitto broker (run this before flashing)"
 	@echo "  \033[36mpreview\033[0m        Serve dashboard at http://localhost:8080"
 	@echo "  \033[36mproxy\033[0m          Start local Claude proxy (personal account, port 7337)"
 	@echo ""

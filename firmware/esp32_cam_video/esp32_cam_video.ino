@@ -42,7 +42,7 @@
 #define WIFI_PASS "your_wifi_password"
 #endif
 #ifndef MQTT_IP
-#define MQTT_IP "broker.hivemq.com"
+#define MQTT_IP "set-MQTT_IP-in-config.mk"
 #endif
 
 const int           MQTT_PORT             = 1883;

@@ -4,7 +4,7 @@ Browser dashboard for controlling physical robots with AI. Runs entirely in the 
 
 ## Architecture
 
-The AI model runs in the browser and publishes MQTT tool calls directly to the broker. The ESP32 subscribes on the other end. Both sides use a public HiveMQ broker by default — no local setup needed.
+The AI model runs in the browser and publishes MQTT tool calls directly to the broker. The ESP32 subscribes on the other end. Both sides default to a local Mosquitto broker on your laptop — everything stays on your LAN, no cloud dependency. Public brokers are available as a fallback in the dashboard preset menu.
 
 ![Architecture and sequence diagrams](diagram.png)
 
@@ -31,7 +31,15 @@ cp config.mk.example config.mk
 ```
 Edit `config.mk` with your WiFi SSID and password. `PORT` is auto-detected — only override it if needed.
 
-**3. Flash firmware** (first time, via USB)
+**3. Start the local MQTT broker**
+
+```bash
+make mqtt
+```
+
+This runs Mosquitto on your laptop (port 1883 for the ESP32, port 9001 for the dashboard's WebSocket). Leave it running in its own terminal.
+
+**4. Flash firmware** (first time, via USB)
 
 Choose a sketch based on your hardware:
 
@@ -40,13 +48,15 @@ make flash-monitor            # LED control (any ESP32)
 make flash-car && make monitor  # Motor control via L298N (ESP32-CAM-MB)
 ```
 
+The Makefile auto-detects your laptop's LAN IP and bakes it into the firmware as the broker address. If detection fails or you need a different interface, set `MQTT_IP` in `config.mk`.
+
 After boot, the ESP32 prints its unique topic prefix (e.g. `devices/d4e9f4a2a044/`) and its local IP. Add the IP to `config.mk` as `ESP32_IP` to enable OTA updates.
 
-**4. Open the dashboard**
+**5. Open the dashboard**
 
-Go to [neevs.io/mqtt-ai](https://neevs.io/mqtt-ai) (or run `make preview` for localhost:8080) and click **Connect** — it defaults to the public HiveMQ broker, the same one the ESP32 connects to. Topics appear automatically.
+Go to [neevs.io/mqtt-ai](https://neevs.io/mqtt-ai) (or run `make preview` for localhost:8080) and click **Connect** — it defaults to `ws://localhost:9001`, the broker you started in step 3. Topics appear automatically.
 
-**5. Control your robot**
+**6. Control your robot**
 
 Browse topics and publish manually, or open the AI chat panel, choose your AI provider, and describe what you want the robot to do.
 
@@ -63,15 +73,9 @@ make ota-car    # Motor sketch
 
 Requires `ESP32_IP` set in `config.mk` (printed by the ESP32 on boot).
 
-## Local broker (optional)
+## Public broker fallback
 
-For offline use or private data, run a local Mosquitto broker:
-
-```bash
-make mqtt
-```
-
-This prints the IP to set in `config.mk`. Then connect the dashboard to `ws://<your local IP>:9001` (or `ws://localhost:9001` with `make preview`).
+Local-first is the default. If LAN discovery is impractical for your setup (e.g. a demo on a guest network that blocks peer-to-peer traffic, or cross-network testing), the dashboard preset menu includes public HiveMQ and test.mosquitto.org brokers. Set `MQTT_IP = broker.hivemq.com` in `config.mk` to point the firmware at the same one. Topics are world-readable on public brokers — don't use them for anything sensitive.
 
 ## Local Claude proxy (optional)
 

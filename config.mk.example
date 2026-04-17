@@ -5,7 +5,8 @@ WIFI_SSID = your_wifi_ssid
 WIFI_PASS = your_wifi_password
 # PORT is auto-detected from /dev/cu.usbserial-*. Override here only if needed.
 # PORT    = /dev/cu.usbserial-XXXXXXXX
-# MQTT_IP defaults to broker.hivemq.com. Set a local IP to use your own broker.
+# MQTT_IP defaults to this laptop's LAN IP (auto-detected). Override if you need
+# to pin to a specific interface, or point the ESP32 at a remote/cloud broker.
 # MQTT_IP = 192.168.1.1
 # ESP32 IP for OTA uploads — shown in Serial Monitor after boot.
 ESP32_IP  =
